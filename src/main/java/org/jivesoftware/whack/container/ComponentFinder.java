@@ -32,9 +32,18 @@ import org.xmpp.component.ComponentManager;
 
 import java.io.File;
 import java.io.FileFilter;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
+import java.io.IOException;
 import java.io.InputStream;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Enumeration;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Properties;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -55,28 +64,61 @@ public class ComponentFinder {
 
 	private static final Logger log = LoggerFactory.getLogger(ComponentFinder.class);
 	
-    private File componentDirectory;
-    private Map<String,Component> components;
-    private Map<Component,ComponentClassLoader> classloaders;
-    private Map<Component,File> componentDirs;
-    private Map<Component, String> componentDomains;
-    private boolean setupMode = true;
-    private ExternalComponentManager manager;
+	private final ExternalComponentManager manager;
+    private final File componentDirectory;
+    
+    private final Map<String,Component> components = new HashMap<String,Component>();
+    private final Map<Component,File> componentDirs = new HashMap<Component,File>();
+    private final Map<Component,String> componentDomains = new HashMap<Component,String>();
+    private final Map<Component,ComponentClassLoader> classloaders = new HashMap<Component,ComponentClassLoader>();
+    
     private ScheduledExecutorService executor = null;
 
+    public static void main(String[] args) {
+        if (args.length != 1) {
+            log.error("Usage: whack <path to home folder>");
+            return;
+        }
+        String homeDir = args[0];
+        Properties properties = new Properties();
+        try {
+            properties.load(new FileInputStream(homeDir + "/whack.conf"));
+        } catch (IOException e) {
+        	log.error(e.getMessage());
+            return;
+        }
+
+        try {
+            // Start the ExternalComponentManager
+            String serverHost = properties.getProperty("server.host");
+            int serverPort = Integer.parseInt(properties.getProperty("server.port", "5275"));
+            ExternalComponentManager manager = new ExternalComponentManager(serverHost, serverPort);
+
+            if (properties.getProperty("server.domain") != null) {
+                manager.setServerName(properties.getProperty("server.domain"));
+            }
+            
+            if (properties.getProperty("server.defaultSecretKey") != null) {
+                manager.setDefaultSecretKey(properties.getProperty("server.defaultSecretKey"));
+            }
+
+            // Load detected components.
+            ComponentFinder componentFinder = new ComponentFinder(manager, new File(homeDir, "components"));
+            componentFinder.start();
+        }
+        catch (Exception e) {
+            log.error(e.getMessage());
+        }
+    }
+    
     /**
      * Constructs a new component manager.
      *
      * @param componentDir the component directory.
      */
-    public ComponentFinder(ServerContainer server, File componentDir) {
-        this.componentDirectory = componentDir;
-        components = new HashMap<String,Component>();
-        componentDirs = new HashMap<Component,File>();
-        classloaders = new HashMap<Component,ComponentClassLoader>();
-        componentDomains = new HashMap<Component,String>();
-        manager = (ExternalComponentManager) server.getManager();
-        setupMode = server.isSetupMode();
+    public ComponentFinder(ExternalComponentManager manager, File componentDir) {
+    	this.manager = manager;
+    	this.componentDirectory = componentDir;
     }
 
     /**
@@ -154,10 +196,6 @@ public class ComponentFinder {
      * @param componentDir the component directory.
      */
     private void loadComponent(File componentDir) {
-        // Do not load & start any component if in setup mode
-        if (setupMode) {
-            return;
-        }
         log.debug("Loading component: " + componentDir.getName());
         Component component = null;
         try {
