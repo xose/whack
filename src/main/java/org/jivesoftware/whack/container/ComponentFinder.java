@@ -24,6 +24,9 @@ import org.dom4j.Document;
 import org.dom4j.Element;
 import org.dom4j.io.SAXReader;
 import org.jivesoftware.whack.ExternalComponentManager;
+import org.jivesoftware.whack.SocketReadThread;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.xmpp.component.Component;
 import org.xmpp.component.ComponentException;
 import org.xmpp.component.ComponentManager;
@@ -51,6 +54,8 @@ import java.util.zip.ZipFile;
  */
 public class ComponentFinder {
 
+	private static final Logger log = LoggerFactory.getLogger(ComponentFinder.class);
+	
     private File componentDirectory;
     private Map<String,Component> components;
     private Map<Component,ComponentClassLoader> classloaders;
@@ -96,7 +101,7 @@ public class ComponentFinder {
             try {
                 manager.removeComponent(subdomain);
             } catch (ComponentException e) {
-                manager.getLog().error("Error shutting down component", e);
+                log.error("Error shutting down component", e);
             }
         }
         components.clear();
@@ -154,7 +159,7 @@ public class ComponentFinder {
         if (setupMode) {
             return;
         }
-        manager.getLog().debug("Loading component: " + componentDir.getName());
+        log.debug("Loading component: " + componentDir.getName());
         Component component = null;
         try {
             File componentConfig = new File(componentDir, "component.xml");
@@ -204,11 +209,11 @@ public class ComponentFinder {
                 }
             }
             else {
-                manager.getLog().warn("Component " + componentDir + " could not be loaded: no component.xml file found");
+                log.warn("Component " + componentDir + " could not be loaded: no component.xml file found");
             }
         }
         catch (Exception e) {
-            manager.getLog().error("Error loading component: " + componentDir.getName(), e);
+            log.error("Error loading component: " + componentDir.getName(), e);
         }
     }
 
@@ -225,7 +230,7 @@ public class ComponentFinder {
      * @param componentName the name of the component to unload.
      */
     public void unloadComponent(String componentName) {
-        manager.getLog().debug("Unloading component " + componentName);
+        log.debug("Unloading component " + componentName);
         Component component = components.get(componentName);
         if (component == null) {
             return;
@@ -241,7 +246,7 @@ public class ComponentFinder {
         try {
             manager.removeComponent(componentDomains.get(component));
         } catch (ComponentException e) {
-            manager.getLog().error("Error shutting down component", e);
+            log.error("Error shutting down component", e);
         }
         classLoader.destroy();
         components.remove(componentName);
@@ -333,7 +338,7 @@ public class ComponentFinder {
             }
         }
         catch (Exception e) {
-            manager.getLog().error(e);
+            log.error(e.getMessage());
         }
         return null;
     }
@@ -371,7 +376,7 @@ public class ComponentFinder {
                         // Ask the system to clean up references.
                         System.gc();
                         while (!deleteDir(dir)) {
-                            manager.getLog().error("Error unloading component " + componentName + ". " +
+                            log.error("Error unloading component " + componentName + ". " +
                                     "Will attempt again momentarily.");
                             Thread.sleep(5000);
                         }
@@ -410,7 +415,7 @@ public class ComponentFinder {
                         unloadComponent(componentName);
                         System.gc();
                         while (!deleteDir(new File(componentDirectory, componentName))) {
-                            manager.getLog().error("Error unloading component " + componentName + ". " +
+                            log.error("Error unloading component " + componentName + ". " +
                                     "Will attempt again momentarily.");
                             Thread.sleep(5000);
                         }
@@ -418,7 +423,7 @@ public class ComponentFinder {
                 }
             }
             catch (Exception e) {
-                manager.getLog().error(e);
+                log.error(e.getMessage());
             }
         }
 
@@ -438,7 +443,7 @@ public class ComponentFinder {
                     return;
                 }
                 dir.mkdir();
-                manager.getLog().debug("Extracting component: " + componentName);
+                log.debug("Extracting component: " + componentName);
                 for (Enumeration e=zipFile.entries(); e.hasMoreElements(); ) {
                     JarEntry entry = (JarEntry)e.nextElement();
                     File entryFile = new File(dir, entry.getName());
@@ -464,7 +469,7 @@ public class ComponentFinder {
                 zipFile = null;
             }
             catch (Exception e) {
-                manager.getLog().error(e);
+                log.error(e.getMessage());
             }
         }
 

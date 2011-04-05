@@ -42,6 +42,8 @@ import org.dom4j.io.XMLWriter;
 import org.dom4j.io.XPPPacketReader;
 import org.jivesoftware.whack.util.StringUtils;
 import org.jivesoftware.whack.util.TaskEngine;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.xmlpull.v1.XmlPullParser;
 import org.xmlpull.v1.XmlPullParserException;
 import org.xmlpull.v1.XmlPullParserFactory;
@@ -64,6 +66,8 @@ import org.xmpp.packet.StreamError;
  */
 public class ExternalComponent implements Component {
 
+	private static final Logger log = LoggerFactory.getLogger(ExternalComponent.class);
+	
     /**
      * The utf-8 charset for decoding and encoding XMPP packet streams.
      */
@@ -329,7 +333,7 @@ public class ExternalComponent implements Component {
                                 iqResultListener.receivedAnswer(iq);
                             }
                             catch (Exception e) {
-                                 manager.getLog().error("Error processing answer of remote entity", e);
+                                 log.error("Error processing answer of remote entity", e);
                             }
                             return;
                         }
@@ -350,7 +354,7 @@ public class ExternalComponent implements Component {
             }
             catch (IOException e) {
                 // Log the exception
-                manager.getLog().error(e);
+                log.error("Error sending packet", e);
                 if (!shutdown) {
                     // Connection was lost so try to reconnect
                     connectionLost();
@@ -405,7 +409,7 @@ public class ExternalComponent implements Component {
                 socket.close();
             }
             catch (Exception e) {
-                manager.getLog().error(e);
+                log.error(e.getMessage());
             }
         }
     }
@@ -445,7 +449,7 @@ public class ExternalComponent implements Component {
                     start();
                 }
             } catch (ComponentException e) {
-                manager.getLog().error("Error trying to reconnect with the server", e);
+                log.error("Error trying to reconnect with the server", e);
                 // Wait for 5 seconds until the next retry
                 try {
                     Thread.sleep(5000);
@@ -493,7 +497,7 @@ public class ExternalComponent implements Component {
                     }
                     catch (IOException e) {
                         // Log the exception
-                        manager.getLog().error(e);
+                        log.error(e.getMessage());
                         if (!shutdown) {
                             // Connection was lost so try to reconnect
                             connectionLost();

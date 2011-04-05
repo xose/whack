@@ -22,6 +22,8 @@ package org.jivesoftware.whack;
 
 import org.dom4j.Element;
 import org.dom4j.io.XPPPacketReader;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.xmlpull.v1.XmlPullParserException;
 import org.xmpp.packet.*;
 
@@ -33,8 +35,10 @@ import java.net.SocketException;
  *
  * @author Gaston Dombiak
  */
-class SocketReadThread extends Thread {
+public class SocketReadThread extends Thread {
 
+	private static final Logger log = LoggerFactory.getLogger(SocketReadThread.class);
+	
     private ExternalComponent component;
     private boolean shutdown = false;
 
@@ -67,15 +71,15 @@ class SocketReadThread extends Thread {
             // Do nothing if the exception occured while shutting down the component otherwise
             // log the error and try to establish a new connection
             if (!shutdown) {
-                component.getManager().getLog().error(se);
+                log.error(se.getMessage());
                 component.connectionLost();
             }
         }
         catch (XmlPullParserException ie) {
-            component.getManager().getLog().error(ie);
+            log.error(ie.getMessage());
         }
         catch (Exception e) {
-            component.getManager().getLog().warn(e);
+            log.warn(e.getMessage());
         }
     }
 
