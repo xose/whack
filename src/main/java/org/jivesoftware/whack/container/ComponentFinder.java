@@ -24,7 +24,6 @@ import org.dom4j.Document;
 import org.dom4j.Element;
 import org.dom4j.io.SAXReader;
 import org.jivesoftware.whack.ExternalComponentManager;
-import org.jivesoftware.whack.SocketReadThread;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.xmpp.component.Component;
@@ -179,34 +178,6 @@ public class ComponentFinder {
                 componentDirs.put(component, componentDir);
                 classloaders.put(component, classLoader);
                 componentDomains.put(component, subdomain);
-                // Load any JSP's defined by the component.
-                File webXML = new File(componentDir, "web" + File.separator + "web.xml");
-                if (webXML.exists()) {
-                    ComponentServlet.registerServlets(this, component, webXML);
-                }
-                // If there a <adminconsole> section defined, register it.
-                Element adminElement = (Element)componentXML.selectSingleNode("/component/adminconsole");
-                if (adminElement != null) {
-                    // If global images are specified, override their URL.
-                    Element imageEl = (Element)adminElement.selectSingleNode(
-                            "/component/adminconsole/global/logo-image");
-                    if (imageEl != null) {
-                        imageEl.setText("components/" + componentDir.getName() + "/" + imageEl.getText());
-                    }
-                    imageEl = (Element)adminElement.selectSingleNode(
-                            "/component/adminconsole/global/login-image");
-                    if (imageEl != null) {
-                        imageEl.setText("components/" + componentDir.getName() + "/" + imageEl.getText());
-                    }
-                    // Modify all the URL's in the XML so that they are passed through
-                    // the component servlet correctly.
-                    /*List urls = adminElement.selectNodes("//@url");
-                    for (int i=0; i<urls.size(); i++) {
-                        Attribute attr = (Attribute)urls.get(i);
-                        attr.setValue("components/" + componentDir.getName() + "/" + attr.getValue());
-                    }
-                    AdminConsole.addModel(componentDir.getName(), adminElement);*/
-                }
             }
             else {
                 log.warn("Component " + componentDir + " could not be loaded: no component.xml file found");
@@ -234,12 +205,6 @@ public class ComponentFinder {
         Component component = components.get(componentName);
         if (component == null) {
             return;
-        }
-        File webXML = new File(componentDirectory + File.separator + componentName +
-                File.separator + "web" + File.separator + "web.xml");
-        if (webXML.exists()) {
-            //AdminConsole.removeModel(componentName);
-            ComponentServlet.unregisterServlets(webXML);
         }
 
         ComponentClassLoader classLoader = classloaders.get(component);
