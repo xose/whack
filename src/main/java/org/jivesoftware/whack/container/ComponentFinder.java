@@ -20,9 +20,6 @@
 
 package org.jivesoftware.whack.container;
 
-import org.dom4j.Document;
-import org.dom4j.Element;
-import org.dom4j.io.SAXReader;
 import org.jivesoftware.whack.ExternalComponentManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,6 +34,8 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URL;
+import java.net.URLClassLoader;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -70,7 +69,7 @@ public class ComponentFinder {
     private final Map<String,Component> components = new HashMap<String,Component>();
     private final Map<Component,File> componentDirs = new HashMap<Component,File>();
     private final Map<Component,String> componentDomains = new HashMap<Component,String>();
-    private final Map<Component,ComponentClassLoader> classloaders = new HashMap<Component,ComponentClassLoader>();
+    private final Map<Component,URLClassLoader> classloaders = new HashMap<Component,URLClassLoader>();
     
     private ScheduledExecutorService executor = null;
 
@@ -108,8 +107,8 @@ public class ComponentFinder {
                 manager.setServerName(properties.getProperty("server.domain"));
             }
             
-            if (properties.getProperty("server.defaultSecretKey") != null) {
-                manager.setDefaultSecretKey(properties.getProperty("server.defaultSecretKey"));
+            if (properties.getProperty("server.secret") != null) {
+                manager.setDefaultSecretKey(properties.getProperty("server.secret"));
             }
             
             // Load detected components.
@@ -205,30 +204,29 @@ public class ComponentFinder {
      * @param componentDir the component directory.
      */
     private void loadComponent(File componentDir) {
-        log.debug("Loading component: " + componentDir.getName());
-        
         Component component = null;
         try {
-            File componentConfig = new File(componentDir, "component.xml");
+            File componentConfig = new File(componentDir, "component.properties");
             if (componentConfig.exists()) {
-                SAXReader saxReader = new SAXReader();
-                Document componentXML = saxReader.read(componentConfig);
-                ComponentClassLoader classLoader = new ComponentClassLoader(componentDir);
-                String className = componentXML.selectSingleNode("/component/class").getText();
-                String subdomain = componentXML.selectSingleNode("/component/subdomain").getText();
-                //component = (Component)classLoader.loadClass(className).newInstance();
-                Class<?> aClass = classLoader.loadClass(className);
-                component = (Component)aClass.newInstance();
+                Properties componentProperties = new Properties();
+                componentProperties.load(new FileInputStream(componentConfig));
+                String className = componentProperties.getProperty("component.class");
+                String subdomain = componentProperties.getProperty("component.subdomain");
 
+                URLClassLoader classLoader = new URLClassLoader(new URL[]{componentDir.toURI().toURL()});
+                component = (Component)classLoader.loadClass(className).newInstance();
+                
                 manager.addComponent(subdomain, component);
 
                 components.put(componentDir.getName(), component);
                 componentDirs.put(component, componentDir);
                 classloaders.put(component, classLoader);
                 componentDomains.put(component, subdomain);
+                
+                log.info("Component: " + className + " loaded on " + subdomain);
             }
             else {
-                log.warn("Component " + componentDir + " could not be loaded: no component.xml file found");
+                log.warn("Component " + componentDir + " could not be loaded: no component.properties file found");
             }
         }
         catch (Exception e) {
@@ -255,13 +253,11 @@ public class ComponentFinder {
             return;
         }
 
-        ComponentClassLoader classLoader = classloaders.get(component);
         try {
             manager.removeComponent(componentDomains.get(component));
         } catch (ComponentException e) {
             log.error("Error shutting down component", e);
         }
-        classLoader.destroy();
         components.remove(componentName);
         componentDirs.remove(component);
         classloaders.remove(component);
@@ -271,89 +267,8 @@ public class ComponentFinder {
     public Class<?> loadClass(String className, Component component) throws ClassNotFoundException,
             IllegalAccessException, InstantiationException
     {
-        ComponentClassLoader loader = classloaders.get(component);
+    	URLClassLoader loader = classloaders.get(component);
         return loader.loadClass(className);
-    }
-
-    /**
-     * Returns the name of a component. The value is retrieved from the component.xml file
-     * of the component. If the value could not be found, <tt>null</tt> will be returned.
-     * Note that this value is distinct from the name of the component directory.
-     *
-     * @param component the component.
-     * @return the component's name.
-     */
-    public String getName(Component component) {
-        String name = getElementValue(component, "/component/name");
-        if (name != null) {
-            return name;
-        }
-        else {
-            return componentDirs.get(component).getName();
-        }
-    }
-
-    /**
-     * Returns the description of a component. The value is retrieved from the component.xml file
-     * of the component. If the value could not be found, <tt>null</tt> will be returned.
-     *
-     * @param component the component.
-     * @return the component's description.
-     */
-    public String getDescription(Component component) {
-        return getElementValue(component, "/component/description");
-    }
-
-    /**
-     * Returns the author of a component. The value is retrieved from the component.xml file
-     * of the component. If the value could not be found, <tt>null</tt> will be returned.
-     *
-     * @param component the component.
-     * @return the component's author.
-     */
-    public String getAuthor(Component component) {
-        return getElementValue(component, "/component/author");
-    }
-
-    /**
-     * Returns the version of a component. The value is retrieved from the component.xml file
-     * of the component. If the value could not be found, <tt>null</tt> will be returned.
-     *
-     * @param component the component.
-     * @return the component's version.
-     */
-    public String getVersion(Component component) {
-        return getElementValue(component, "/component/version");
-    }
-
-    /**
-     * Returns the value of an element selected via an xpath expression from
-     * a component's component.xml file.
-     *
-     * @param component the component.
-     * @param xpath the xpath expression.
-     * @return the value of the element selected by the xpath expression.
-     */
-    private String getElementValue(Component component, String xpath) {
-        File componentDir = componentDirs.get(component);
-        if (componentDir == null) {
-            return null;
-        }
-        try {
-            File componentConfig = new File(componentDir, "component.xml");
-            if (componentConfig.exists()) {
-                SAXReader saxReader = new SAXReader();
-                Document componentXML = saxReader.read(componentConfig);
-                Element element = (Element)componentXML.selectSingleNode(xpath);
-                if (element != null) {
-                    return element.getTextTrim();
-                }
-            }
-        }
-        catch (Exception e) {
-            log.error(e.getMessage());
-        }
-        return null;
     }
 
     /**
@@ -363,6 +278,8 @@ public class ComponentFinder {
      */
     private class ComponentMonitor implements Runnable {
 
+    	private final Logger log = LoggerFactory.getLogger(ComponentFinder.class);
+    	
         public void run() {
             try {
                 if (!componentDirectory.exists()) {
@@ -452,13 +369,14 @@ public class ComponentFinder {
          */
         private void unzipComponent(String componentName, File file, File dir) {
             try {
+            	
                 JarFile zipFile = new JarFile(file);
                 // Ensure that this JAR is a component.
-                if (zipFile.getEntry("component.xml") == null) {
+                if (zipFile.getEntry("component.properties") == null) {
                     return;
                 }
                 dir.mkdir();
-                log.debug("Extracting component: " + componentName);
+
                 for (Enumeration<JarEntry> e=zipFile.entries(); e.hasMoreElements(); ) {
                     JarEntry entry = e.nextElement();
                     File entryFile = new File(dir, entry.getName());
