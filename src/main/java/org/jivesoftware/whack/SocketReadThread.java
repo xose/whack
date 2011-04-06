@@ -25,7 +25,11 @@ import org.dom4j.io.XPPPacketReader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.xmlpull.v1.XmlPullParserException;
-import org.xmpp.packet.*;
+import org.xmpp.packet.IQ;
+import org.xmpp.packet.Message;
+import org.xmpp.packet.Packet;
+import org.xmpp.packet.Presence;
+import org.xmpp.packet.Roster;
 
 import java.io.EOFException;
 import java.net.SocketException;

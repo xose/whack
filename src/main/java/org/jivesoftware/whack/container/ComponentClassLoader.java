@@ -26,7 +26,6 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 
 /**
@@ -55,10 +54,10 @@ class ComponentClassLoader {
      *      properly converted to a URL.
      */
     public ComponentClassLoader(File componentDir) throws MalformedURLException, SecurityException {
-        final List list = new ArrayList();
+        final List<URL> list = new ArrayList<URL>();
         File classesDir = new File(componentDir, "classes");
         if (classesDir.exists()) {
-            list.add(classesDir.toURL());
+            list.add(classesDir.toURI().toURL());
         }
         File libDir = new File(componentDir, "lib");
         File[] jars = libDir.listFiles(new FilenameFilter() {
@@ -67,18 +66,13 @@ class ComponentClassLoader {
             }
         });
         if (jars != null) {
-            for (int i = 0; i < jars.length; i++) {
-                if (jars[i] != null && jars[i].isFile()) {
-                    list.add(jars[i].toURL());
+            for (File jar : jars) {
+                if (jar != null && jar.isFile()) {
+                    list.add(jar.toURI().toURL());
                 }
             }
         }
-        Iterator urls = list.iterator();
-        URL[] urlArray = new URL[list.size()];
-        for (int i = 0; urls.hasNext(); i++) {
-            urlArray[i] = (URL)urls.next();
-        }
-        classLoader = new URLClassLoader(urlArray, findParentClassLoader());
+        classLoader = new URLClassLoader(list.toArray(new URL[0]), findParentClassLoader());
     }
 
     /**
@@ -91,7 +85,7 @@ class ComponentClassLoader {
      * @throws InstantiationException if the class could not be instantiated (initialization error).
      * @throws SecurityException if the custom class loader not allowed.
      */
-    public Class loadClass(String name) throws ClassNotFoundException, IllegalAccessException,
+    public Class<?> loadClass(String name) throws ClassNotFoundException, IllegalAccessException,
             InstantiationException, SecurityException
     {
         return classLoader.loadClass(name);

@@ -33,6 +33,7 @@ import org.xmpp.component.ComponentManager;
 import java.io.File;
 import java.io.FileFilter;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -49,7 +50,6 @@ import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
-import java.util.zip.ZipFile;
 
 /**
  * Loads and manages components. The <tt>components</tt> directory is monitored for any
@@ -83,14 +83,24 @@ public class ComponentFinder {
         Properties properties = new Properties();
         try {
             properties.load(new FileInputStream(homeDir + "/whack.conf"));
+        } catch (FileNotFoundException e) {
+        	log.warn("Configuration file not found. Using defaults");
+        	InputStream defaultConf = ClassLoader.getSystemResourceAsStream("whack.conf.default");
+       		try {
+				properties.load(defaultConf);
+				properties.store(new FileOutputStream(homeDir + "/whack.conf"), null);
+			} catch (IOException e1) {
+				log.warn("Error saving defaults", e);
+			}
+        	
         } catch (IOException e) {
         	log.error(e.getMessage());
-            return;
+        	return;
         }
 
         try {
             // Start the ExternalComponentManager
-            String serverHost = properties.getProperty("server.host");
+            String serverHost = properties.getProperty("server.host", "localhost");
             int serverPort = Integer.parseInt(properties.getProperty("server.port", "5275"));
             ExternalComponentManager manager = new ExternalComponentManager(serverHost, serverPort);
 
@@ -101,10 +111,9 @@ public class ComponentFinder {
             if (properties.getProperty("server.defaultSecretKey") != null) {
                 manager.setDefaultSecretKey(properties.getProperty("server.defaultSecretKey"));
             }
-
+            
             // Load detected components.
-            ComponentFinder componentFinder = new ComponentFinder(manager, new File(homeDir, "components"));
-            componentFinder.start();
+            new ComponentFinder(manager, new File(homeDir, "components")).start();
         }
         catch (Exception e) {
             log.error(e.getMessage());
@@ -197,6 +206,7 @@ public class ComponentFinder {
      */
     private void loadComponent(File componentDir) {
         log.debug("Loading component: " + componentDir.getName());
+        
         Component component = null;
         try {
             File componentConfig = new File(componentDir, "component.xml");
@@ -207,7 +217,7 @@ public class ComponentFinder {
                 String className = componentXML.selectSingleNode("/component/class").getText();
                 String subdomain = componentXML.selectSingleNode("/component/subdomain").getText();
                 //component = (Component)classLoader.loadClass(className).newInstance();
-                Class aClass = classLoader.loadClass(className);
+                Class<?> aClass = classLoader.loadClass(className);
                 component = (Component)aClass.newInstance();
 
                 manager.addComponent(subdomain, component);
@@ -258,7 +268,7 @@ public class ComponentFinder {
         componentDomains.remove(component);
     }
 
-    public Class loadClass(String className, Component component) throws ClassNotFoundException,
+    public Class<?> loadClass(String className, Component component) throws ClassNotFoundException,
             IllegalAccessException, InstantiationException
     {
         ComponentClassLoader loader = classloaders.get(component);
@@ -355,6 +365,10 @@ public class ComponentFinder {
 
         public void run() {
             try {
+                if (!componentDirectory.exists()) {
+                	componentDirectory.mkdir();
+                }
+            	
                 File [] jars = componentDirectory.listFiles(new FileFilter() {
                     public boolean accept(File pathname) {
                         String fileName = pathname.getName().toLowerCase();
@@ -362,8 +376,7 @@ public class ComponentFinder {
                     }
                 });
 
-                for (int i=0; i<jars.length; i++) {
-                    File jarFile = jars[i];
+                for (File jarFile : jars) {
                     String componentName = jarFile.getName().substring(
                             0, jarFile.getName().length()-4).toLowerCase();
                     // See if the JAR has already been exploded.
@@ -394,8 +407,7 @@ public class ComponentFinder {
                     }
                 });
 
-                for (int i=0; i<dirs.length; i++) {
-                    File dirFile = dirs[i];
+                for (File dirFile : dirs) {
                     // If the component hasn't already been started, start it.
                     if (!components.containsKey(dirFile.getName())) {
                         loadComponent(dirFile);
@@ -426,7 +438,7 @@ public class ComponentFinder {
                 }
             }
             catch (Exception e) {
-                log.error(e.getMessage());
+                log.error("ComponentMonitor error", e);
             }
         }
 
@@ -440,15 +452,15 @@ public class ComponentFinder {
          */
         private void unzipComponent(String componentName, File file, File dir) {
             try {
-                ZipFile zipFile = new JarFile(file);
+                JarFile zipFile = new JarFile(file);
                 // Ensure that this JAR is a component.
                 if (zipFile.getEntry("component.xml") == null) {
                     return;
                 }
                 dir.mkdir();
                 log.debug("Extracting component: " + componentName);
-                for (Enumeration e=zipFile.entries(); e.hasMoreElements(); ) {
-                    JarEntry entry = (JarEntry)e.nextElement();
+                for (Enumeration<JarEntry> e=zipFile.entries(); e.hasMoreElements(); ) {
+                    JarEntry entry = e.nextElement();
                     File entryFile = new File(dir, entry.getName());
                     // Ignore any manifest.mf entries.
                     if (entry.getName().toLowerCase().endsWith("manifest.mf")) {
