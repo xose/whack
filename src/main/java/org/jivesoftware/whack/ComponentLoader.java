@@ -18,9 +18,8 @@
  * limitations under the License.
  */
 
-package org.jivesoftware.whack.container;
+package org.jivesoftware.whack;
 
-import org.jivesoftware.whack.ExternalComponentManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.xmpp.component.Component;
@@ -59,9 +58,9 @@ import java.util.jar.JarFile;
  * @author Matt Tucker
  * @author Gaston Dombiak
  */
-public class ComponentFinder {
+public class ComponentLoader {
 
-	private static final Logger log = LoggerFactory.getLogger(ComponentFinder.class);
+	private static final Logger log = LoggerFactory.getLogger(ComponentLoader.class);
 	
 	private final ExternalComponentManager manager;
     private final File componentDirectory;
@@ -112,7 +111,7 @@ public class ComponentFinder {
             }
             
             // Load detected components.
-            new ComponentFinder(manager, new File(homeDir, "components")).start();
+            new ComponentLoader(manager, new File(homeDir, "components")).start();
         }
         catch (Exception e) {
             log.error(e.getMessage());
@@ -124,7 +123,7 @@ public class ComponentFinder {
      *
      * @param componentDir the component directory.
      */
-    public ComponentFinder(ExternalComponentManager manager, File componentDir) {
+    public ComponentLoader(ExternalComponentManager manager, File componentDir) {
     	this.manager = manager;
     	this.componentDirectory = componentDir;
     }
@@ -278,7 +277,7 @@ public class ComponentFinder {
      */
     private class ComponentMonitor implements Runnable {
 
-    	private final Logger log = LoggerFactory.getLogger(ComponentFinder.class);
+    	private final Logger log = LoggerFactory.getLogger(ComponentLoader.class);
     	
         public void run() {
             try {

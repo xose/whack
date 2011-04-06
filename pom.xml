@@ -65,7 +65,7 @@
 					</descriptorRefs>
 					<archive>
 						<manifest>
-							<mainClass>org.jivesoftware.whack.container.ComponentFinder</mainClass>
+							<mainClass>org.jivesoftware.whack.ComponentLoader</mainClass>
 						</manifest>
 					</archive>
 				</configuration>
