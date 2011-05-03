@@ -1,5 +1,0 @@
-server.host = localhost
-server.port = 5275
-
-server.domain = localhost
-server.secret = secret
