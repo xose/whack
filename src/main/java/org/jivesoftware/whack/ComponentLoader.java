@@ -81,7 +81,7 @@ public class ComponentLoader {
 			String className = serverConf.getProperty(componentID + ".class");
 			String subdomain = serverConf.getProperty(componentID + ".subdomain");
 			String secretKey = serverConf.getProperty(componentID + ".secret");
-			boolean multi = Boolean.parseBoolean(serverConf.getProperty(componentID + ".secret"));
+			boolean multi = Boolean.parseBoolean(serverConf.getProperty(componentID + ".multi"));
 
 			if (className == null || subdomain == null) {
 				log.error(componentID + ".class and " + componentID + ".subdomain must be set");
@@ -90,7 +90,7 @@ public class ComponentLoader {
 
 			try {
 				ClassLoader loader = new URLClassLoader(new URL[] { new File(jarName).toURI().toURL() });
-				Class<? extends Component> componentClass = loader.loadClass("org.jivesoftware.sample.twitter.TwitterComponent").asSubclass(Component.class);
+				Class<? extends Component> componentClass = loader.loadClass(className).asSubclass(Component.class);
 				Component newComponent = componentClass.newInstance();
 
 				if (secretKey != null)
