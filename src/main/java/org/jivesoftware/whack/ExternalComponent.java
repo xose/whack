@@ -281,11 +281,13 @@ public class ExternalComponent implements Component {
         return component;
     }
 
-    public String getName() {
+    @Override
+	public String getName() {
         return component.getName();
     }
 
-    public String getDescription() {
+    @Override
+	public String getDescription() {
         return component.getDescription();
     }
 
@@ -318,9 +320,11 @@ public class ExternalComponent implements Component {
         return manager;
     }
 
-    public void processPacket(final Packet packet) {
+    @Override
+	public void processPacket(final Packet packet) {
         threadPool.execute(new Runnable() {
-            public void run() {
+            @Override
+			public void run() {
                 if (packet instanceof IQ) {
                     IQ iq = (IQ) packet;
                     IQ.Type iqType = iq.getType();
@@ -363,11 +367,13 @@ public class ExternalComponent implements Component {
         }
     }
 
-    public void initialize(JID jid, ComponentManager componentManager) throws ComponentException {
+    @Override
+	public void initialize(JID jid, ComponentManager componentManager) throws ComponentException {
         component.initialize(jid, componentManager);
     }
 
-    public void start() {
+    @Override
+	public void start() {
         // Everything went fine so start reading packets from the server
         readerThread = new SocketReadThread(this, reader);
         readerThread.setDaemon(true);
@@ -376,7 +382,8 @@ public class ExternalComponent implements Component {
         component.start();
     }
 
-    public void shutdown() {
+    @Override
+	public void shutdown() {
         shutdown = true;
         // Notify the component to shutdown
         component.shutdown();
@@ -487,7 +494,8 @@ public class ExternalComponent implements Component {
      */
     private class KeepAliveTask extends TimerTask {
 
-        public void run() {
+        @Override
+		public void run() {
             synchronized (writer) {
                 // Send heartbeat if no packet has been sent to the server for a given time
                 if (System.currentTimeMillis() - lastActive >= 30000) {

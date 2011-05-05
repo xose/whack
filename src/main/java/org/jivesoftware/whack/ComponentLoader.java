@@ -116,6 +116,11 @@ public class ComponentLoader {
 				log.error(String.format("Illegal access error loading component '%s'", componentID), e);
 			}
 		}
+		
+		if (subdomains.isEmpty()) {
+			log.error("No components loaded. Exiting.");
+			System.exit(1);
+		}
 
 		Runtime.getRuntime().addShutdownHook(new Thread() {
 			@Override

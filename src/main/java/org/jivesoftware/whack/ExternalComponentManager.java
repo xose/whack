@@ -187,7 +187,8 @@ public class ExternalComponentManager implements ComponentManager {
         this.allowMultiple.put(subdomain, allowMultiple);
     }
 
-    public void addComponent(String subdomain, Component component) throws ComponentException {
+    @Override
+	public void addComponent(String subdomain, Component component) throws ComponentException {
         addComponent(subdomain, component, this.port);
     }
 
@@ -224,7 +225,8 @@ public class ExternalComponentManager implements ComponentManager {
         externalComponent.start();
     }
 
-    public void removeComponent(String subdomain) throws ComponentException {
+    @Override
+	public void removeComponent(String subdomain) throws ComponentException {
         ExternalComponent externalComponent = componentsByDomain.remove(subdomain);
         if (externalComponent != null) {
             components.remove(externalComponent.getComponent());
@@ -232,21 +234,25 @@ public class ExternalComponentManager implements ComponentManager {
         }
     }
 
-    public void sendPacket(Component component, Packet packet) {
+    @Override
+	public void sendPacket(Component component, Packet packet) {
         // Get the ExternalComponent that is wrapping the specified component and ask it to
         // send the packet
         components.get(component).send(packet);
     }
 
-    public IQ query(Component component, IQ packet, long timeout) throws ComponentException {
+    @Override
+	public IQ query(Component component, IQ packet, long timeout) throws ComponentException {
         final LinkedBlockingQueue<IQ> answer = new LinkedBlockingQueue<IQ>(8);
         ExternalComponent externalComponent = components.get(component);
         externalComponent.addIQResultListener(packet.getID(), new IQResultListener() {
-            public void receivedAnswer(IQ packet) {
+            @Override
+			public void receivedAnswer(IQ packet) {
                 answer.offer(packet);
             }
 
-            public void answerTimeout(String packetId) {
+            @Override
+			public void answerTimeout(String packetId) {
                 //Do nothing
             }
         }, timeout);
@@ -261,18 +267,21 @@ public class ExternalComponentManager implements ComponentManager {
         return reply;
     }
 
-    public void query(Component component, IQ packet, IQResultListener listener) throws ComponentException {
+    @Override
+	public void query(Component component, IQ packet, IQResultListener listener) throws ComponentException {
         ExternalComponent externalComponent = components.get(component);
         // Add listenet with a timeout of 5 minutes to prevent memory leaks
         externalComponent.addIQResultListener(packet.getID(), listener, 300000);
         sendPacket(component, packet);
     }
 
-    public String getProperty(String name) {
+    @Override
+	public String getProperty(String name) {
         return preferences.get(getPreferencesPrefix() + name, null);
     }
 
-    public void setProperty(String name, String value) {
+    @Override
+	public void setProperty(String name, String value) {
         preferences.put(getPreferencesPrefix() + name, value);
     }
 
@@ -302,7 +311,8 @@ public class ExternalComponentManager implements ComponentManager {
      *
      * @return the domain of the XMPP server or null if never configured.
      */
-    public String getServerName() {
+    @Override
+	public String getServerName() {
         return domain;
     }
 
@@ -326,7 +336,8 @@ public class ExternalComponentManager implements ComponentManager {
         this.connectTimeout = connectTimeout;
     }
 
-    public boolean isExternalMode() {
+    @Override
+	public boolean isExternalMode() {
         return true;
     }
 
