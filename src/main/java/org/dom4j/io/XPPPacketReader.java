@@ -126,12 +126,10 @@ public class XPPPacketReader {
 	 */
 	public Document read(final String systemID) throws DocumentException, IOException, XmlPullParserException {
 		if (systemID.indexOf(':') >= 0)
-			// lets assume its a URL
-			return read(new URL(systemID));
-		else
-
-			// lets assume that we are given a file name
-			return read(new File(systemID));
+			return read(new URL(systemID)); // lets assume its a URL
+		
+		// lets assume that we are given a file name
+		return read(new File(systemID));
 	}
 
 	/**
