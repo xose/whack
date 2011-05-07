@@ -20,11 +20,6 @@
 
 package org.jivesoftware.whack;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.xmpp.component.Component;
-import org.xmpp.component.ComponentException;
-
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
@@ -35,6 +30,11 @@ import java.net.URLClassLoader;
 import java.util.HashSet;
 import java.util.Properties;
 import java.util.Set;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.xmpp.component.Component;
+import org.xmpp.component.ComponentException;
 
 public class ComponentLoader {
 
@@ -48,40 +48,40 @@ public class ComponentLoader {
 	}
 
 	protected void startWhack() {
-		Properties serverConf = new Properties();
+		final Properties serverConf = new Properties();
 		try {
 			serverConf.load(new FileInputStream("whack.conf"));
-		} catch (FileNotFoundException e) {
+		} catch (final FileNotFoundException e) {
 			log.error("Configuration file not found");
 			System.exit(1);
-		} catch (IOException e) {
+		} catch (final IOException e) {
 			log.error("Error reading configuration file", e);
 			System.exit(1);
 		}
 
 		// Get configuration settings
-		String serverHost = serverConf.getProperty("whack.host", "localhost");
-		int serverPort = Integer.parseInt(serverConf.getProperty("whack.port", "5275"));
-		String serverDomain = serverConf.getProperty("whack.domain", serverHost);
-		String defaultKey = serverConf.getProperty("whack.secret");
-		int timeout = Integer.parseInt(serverConf.getProperty("whack.timeout", "2000"));
+		final String serverHost = serverConf.getProperty("whack.host", "localhost");
+		final int serverPort = Integer.parseInt(serverConf.getProperty("whack.port", "5275"));
+		final String serverDomain = serverConf.getProperty("whack.domain", serverHost);
+		final String defaultKey = serverConf.getProperty("whack.secret");
+		final int timeout = Integer.parseInt(serverConf.getProperty("whack.timeout", "2000"));
 
 		manager = new ExternalComponentManager(serverHost, serverPort);
 		manager.setDefaultSecretKey(defaultKey);
 		manager.setServerName(serverDomain);
 		manager.setConnectTimeout(timeout);
 
-		for (String componentID : serverConf.getProperty("whack.components", "").split(",")) {
+		for (final String componentID : serverConf.getProperty("whack.components", "").split(",")) {
 			if (!componentID.matches("\\w+") || componentID.equals("server")) {
 				log.warn(String.format("Invalid component ID '%s'", componentID));
 				continue;
 			}
 
-			String jarName = serverConf.getProperty(componentID + ".jar");
-			String className = serverConf.getProperty(componentID + ".class");
-			String subdomain = serverConf.getProperty(componentID + ".subdomain");
-			String secretKey = serverConf.getProperty(componentID + ".secret");
-			boolean multi = Boolean.parseBoolean(serverConf.getProperty(componentID + ".multi"));
+			final String jarName = serverConf.getProperty(componentID + ".jar");
+			final String className = serverConf.getProperty(componentID + ".class");
+			final String subdomain = serverConf.getProperty(componentID + ".subdomain");
+			final String secretKey = serverConf.getProperty(componentID + ".secret");
+			final boolean multi = Boolean.parseBoolean(serverConf.getProperty(componentID + ".multi"));
 
 			if (className == null || subdomain == null) {
 				log.error(componentID + ".class and " + componentID + ".subdomain must be set");
@@ -89,34 +89,35 @@ public class ComponentLoader {
 			}
 
 			try {
-				ClassLoader loader = new URLClassLoader(new URL[] { new File(jarName).toURI().toURL() });
-				Class<? extends Component> componentClass = loader.loadClass(className).asSubclass(Component.class);
-				Component newComponent = componentClass.newInstance();
+				final ClassLoader loader = new URLClassLoader(new URL[] { new File(jarName).toURI().toURL() });
+				final Class<? extends Component> componentClass = loader.loadClass(className).asSubclass(Component.class);
+				final Component newComponent = componentClass.newInstance();
 
-				if (secretKey != null)
+				if (secretKey != null) {
 					manager.setSecretKey(subdomain, secretKey);
+				}
 
 				manager.setMultipleAllowed(subdomain, multi);
 
 				try {
 					manager.addComponent(subdomain, newComponent);
-				} catch (ComponentException e) {
+				} catch (final ComponentException e) {
 					log.error(String.format("Error loading component '%s'", componentID), e);
 					continue;
 				}
 
 				subdomains.add(subdomain);
-			} catch (MalformedURLException e) {
+			} catch (final MalformedURLException e) {
 				log.error(String.format("Malformed JAR name '%s'", jarName), e);
-			} catch (ClassNotFoundException e) {
+			} catch (final ClassNotFoundException e) {
 				log.error(String.format("Component class '%s' not found", className), e);
-			} catch (InstantiationException e) {
+			} catch (final InstantiationException e) {
 				log.error(String.format("Error instantiating component '%s'", componentID), e);
-			} catch (IllegalAccessException e) {
+			} catch (final IllegalAccessException e) {
 				log.error(String.format("Illegal access error loading component '%s'", componentID), e);
 			}
 		}
-		
+
 		if (subdomains.isEmpty()) {
 			log.error("No components loaded. Exiting.");
 			System.exit(1);
@@ -132,26 +133,26 @@ public class ComponentLoader {
 		while (true) {
 			try {
 				Thread.sleep(1000);
-			} catch (InterruptedException e) {
+			} catch (final InterruptedException e) {
 				break;
 			}
 		}
-		
+
 		System.exit(0);
 	}
 
 	public void stopWhack() {
 		log.info("Shutting down...");
-		for (String subdomain : subdomains) {
+		for (final String subdomain : subdomains) {
 			try {
 				manager.removeComponent(subdomain);
-			} catch (ComponentException e1) {
+			} catch (final ComponentException e1) {
 				log.error("Error shutting down component");
 			}
 		}
 	}
 
-	public static void main(String[] args) {
+	public static void main(final String[] args) {
 		new ComponentLoader().startWhack();
 	}
 

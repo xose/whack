@@ -31,7 +31,7 @@ public class StringUtils {
 	/**
 	 * Used to build output as Hex
 	 */
-	private static final char[] HEX_DIGITS = {'0','1','2','3','4','5','6','7','8','9','a','b','c','d','e','f'};
+	private static final char[] HEX_DIGITS = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f' };
 
 	/**
 	 * Calculates the SHA-1 digest and returns the value as a hex string.
@@ -40,18 +40,18 @@ public class StringUtils {
 	 *            Data to digest
 	 * @return SHA-1 digest as a hex string
 	 */
-	public static final String hash(String data) {
+	public static final String hash(final String data) {
 		MessageDigest digest;
 		try {
 			digest = MessageDigest.getInstance("SHA");
-		} catch (NoSuchAlgorithmException e) {
+		} catch (final NoSuchAlgorithmException e) {
 			throw new RuntimeException(e.getMessage());
 		}
 
 		// Now, compute hash.
 		try {
 			digest.update(data.getBytes("UTF-8"));
-		} catch (UnsupportedEncodingException e) {
+		} catch (final UnsupportedEncodingException e) {
 			throw new IllegalStateException(e.getMessage());
 		}
 
@@ -68,9 +68,9 @@ public class StringUtils {
 	 *            a byte[] to convert to Hex characters
 	 * @return A String containing hexadecimal characters
 	 */
-	private static final String encodeHex(byte[] data) {
-		int l = data.length;
-		char[] out = new char[l << 1];
+	private static final String encodeHex(final byte[] data) {
+		final int l = data.length;
+		final char[] out = new char[l << 1];
 		// two characters form the hex value.
 		for (int i = 0, j = 0; i < l; i++) {
 			out[j++] = HEX_DIGITS[(0xF0 & data[i]) >>> 4];

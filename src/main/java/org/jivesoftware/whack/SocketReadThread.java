@@ -20,6 +20,9 @@
 
 package org.jivesoftware.whack;
 
+import java.io.EOFException;
+import java.net.SocketException;
+
 import org.dom4j.Element;
 import org.dom4j.io.XPPPacketReader;
 import org.slf4j.Logger;
@@ -31,114 +34,106 @@ import org.xmpp.packet.Packet;
 import org.xmpp.packet.Presence;
 import org.xmpp.packet.Roster;
 
-import java.io.EOFException;
-import java.net.SocketException;
-
 /**
- * Reads XMPP XML packets from a socket and asks the component to process the packets.
- *
+ * Reads XMPP XML packets from a socket and asks the component to process the
+ * packets.
+ * 
  * @author Gaston Dombiak
  */
 public class SocketReadThread extends Thread {
 
 	private static final Logger log = LoggerFactory.getLogger(SocketReadThread.class);
-	
-    private ExternalComponent component;
-    private boolean shutdown = false;
 
-    XPPPacketReader reader = null;
+	private final ExternalComponent component;
+	private boolean shutdown = false;
 
-    /**
-     * Create dedicated read thread for this socket.
-     *
-     * @param component  The component for which this thread is reading for
-     * @param reader     The reader to use for reading
-     */
-    public SocketReadThread(ExternalComponent component, XPPPacketReader reader) {
-        super("Component socket reader");
-        this.component = component;
-        this.reader = reader;
-    }
+	XPPPacketReader reader = null;
 
-    /**
-     * A dedicated thread loop for reading the stream and sending incoming
-     * packets to the appropriate router.
-     */
-    @Override
+	/**
+	 * Create dedicated read thread for this socket.
+	 * 
+	 * @param component
+	 *            The component for which this thread is reading for
+	 * @param reader
+	 *            The reader to use for reading
+	 */
+	public SocketReadThread(final ExternalComponent component, final XPPPacketReader reader) {
+		super("Component socket reader");
+		this.component = component;
+		this.reader = reader;
+	}
+
+	/**
+	 * A dedicated thread loop for reading the stream and sending incoming
+	 * packets to the appropriate router.
+	 */
+	@Override
 	public void run() {
-        try {
-            readStream();
-        }
-        catch (EOFException eof) {
-            // Normal disconnect
-        }
-        catch (SocketException se) {
-            // Do nothing if the exception occured while shutting down the component otherwise
-            // log the error and try to establish a new connection
-            if (!shutdown) {
-                log.error(se.getMessage());
-                component.connectionLost();
-            }
-        }
-        catch (XmlPullParserException ie) {
-            log.error(ie.getMessage());
-        }
-        catch (Exception e) {
-            log.warn(e.getMessage());
-        }
-    }
+		try {
+			readStream();
+		} catch (final EOFException eof) {
+			// Normal disconnect
+		} catch (final SocketException se) {
+			// Do nothing if the exception occured while shutting down the
+			// component otherwise
+			// log the error and try to establish a new connection
+			if (!shutdown) {
+				log.error(se.getMessage());
+				component.connectionLost();
+			}
+		} catch (final XmlPullParserException ie) {
+			log.error(ie.getMessage());
+		} catch (final Exception e) {
+			log.warn(e.getMessage());
+		}
+	}
 
-    /**
-     * Read the incoming stream until it ends.
-     */
-    private void readStream() throws Exception {
-        while (!shutdown) {
-            Element doc = reader.parseDocument().getRootElement();
+	/**
+	 * Read the incoming stream until it ends.
+	 */
+	private void readStream() throws Exception {
+		while (!shutdown) {
+			final Element doc = reader.parseDocument().getRootElement();
 
-            if (doc == null) {
-                // Stop reading the stream since the server has sent an end of stream element and
-                // probably closed the connection
-                return;
-            }
+			if (doc == null)
+				// Stop reading the stream since the server has sent an end of
+				// stream element and
+				// probably closed the connection
+				return;
 
-            Packet packet;
-            String tag = doc.getName();
-            if ("message".equals(tag)) {
-                packet = new Message(doc);
-            }
-            else if ("presence".equals(tag)) {
-                packet = new Presence(doc);
-            }
-            else if ("iq".equals(tag)) {
-                packet = getIQ(doc);
-            }
-            else {
-                throw new XmlPullParserException("Unknown packet type was read: " + tag);
-            }
-            // Request the component to process the received packet
-            component.processPacket(packet);
-        }
-    }
+			Packet packet;
+			final String tag = doc.getName();
+			if ("message".equals(tag)) {
+				packet = new Message(doc);
+			} else if ("presence".equals(tag)) {
+				packet = new Presence(doc);
+			} else if ("iq".equals(tag)) {
+				packet = getIQ(doc);
+			} else
+				throw new XmlPullParserException("Unknown packet type was read: " + tag);
+			// Request the component to process the received packet
+			component.processPacket(packet);
+		}
+	}
 
-    private IQ getIQ(Element doc) {
-        Element query = doc.element("query");
-        if (query != null && "jabber:iq:roster".equals(query.getNamespaceURI())) {
-            return new Roster(doc);
-        }
-        else {
-            return new IQ(doc);
-        }
-    }
+	private IQ getIQ(final Element doc) {
+		final Element query = doc.element("query");
+		if (query != null && "jabber:iq:roster".equals(query.getNamespaceURI()))
+			return new Roster(doc);
+		return new IQ(doc);
+	}
 
-    /**
-     * Aks the thread to stop reading packets. The thread may not stop immediatelly so if a socket
-     * exception occurs because the connection was lost then no exception will be logged nor the
-     * component will try to reestablish the connection.<p>
-     *
-     * Once this method was sent this instance should be discarded and created a new one if a new
-     * connection with the server is established.
-     */
-    public void shutdown() {
-        shutdown = true;
-    }
+	/**
+	 * Aks the thread to stop reading packets. The thread may not stop
+	 * immediatelly so if a socket exception occurs because the connection was
+	 * lost then no exception will be logged nor the component will try to
+	 * reestablish the connection.
+	 * <p>
+	 * 
+	 * Once this method was sent this instance should be discarded and created a
+	 * new one if a new connection with the server is established.
+	 */
+	public void shutdown() {
+		shutdown = true;
+	}
 }
